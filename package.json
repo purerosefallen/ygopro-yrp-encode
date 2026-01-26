@@ -1,6 +1,6 @@
 {
   "name": "ygopro-yrp-encode",
-  "description": "ygopro-yrp-encode-desc",
+  "description": "A platform-agnostic YGOPro `.yrp` / `.yrp2` replay parser and writer (no Node `Buffer` usage inside the core logic).",
   "version": "1.0.0",
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",
@@ -67,6 +67,6 @@
   },
   "dependencies": {
     "@nanahira/lzma1": "^0.2.1",
-    "ygopro-deck-encode": "^1.0.14"
+    "ygopro-deck-encode": "^1.0.15"
   }
 }

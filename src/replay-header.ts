@@ -23,11 +23,13 @@ export class ReplayHeader {
 
   get dataSize(): number {
     return (
-      (this.dataSizeRaw[0] | 0) |
-      ((this.dataSizeRaw[1] | 0) << 8) |
-      ((this.dataSizeRaw[2] | 0) << 16) |
-      ((this.dataSizeRaw[3] | 0) << 24)
-    ) >>> 0;
+      (this.dataSizeRaw[0] |
+        0 |
+        ((this.dataSizeRaw[1] | 0) << 8) |
+        ((this.dataSizeRaw[2] | 0) << 16) |
+        ((this.dataSizeRaw[3] | 0) << 24)) >>>
+      0
+    );
   }
 
   set dataSize(v: number) {

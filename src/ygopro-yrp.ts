@@ -17,7 +17,7 @@ import {
 } from './replay-io';
 import { ByteReader, ByteWriter } from './utility/byte-io';
 import { concatBytes } from './utility/bytes';
-import { compress } from './utility/lzma';
+import { compress } from '@nanahira/lzma1';
 
 export class YGOProYrp {
   constructor(init: Partial<YGOProYrpLike> = {}) {
@@ -70,7 +70,8 @@ export class YGOProYrp {
     }
 
     if (init.tagHostName !== undefined) this.tagHostName = init.tagHostName;
-    if (init.tagClientName !== undefined) this.tagClientName = init.tagClientName;
+    if (init.tagClientName !== undefined)
+      this.tagClientName = init.tagClientName;
 
     if (init.tagHostDeck) {
       this.tagHostDeck = new YGOProDeck({
@@ -169,7 +170,10 @@ export class YGOProYrp {
 
   /** Serialize to .yrp/.yrp2 bytes (Uint8Array) */
   toYrp(): Uint8Array {
-    if (!this.header) throw new Error('Header not initialized. Call fromYrp() or set header first.');
+    if (!this.header)
+      throw new Error(
+        'Header not initialized. Call fromYrp() or set header first.',
+      );
 
     // --- build uncompressed body ---
     const w = new ByteWriter(1024);
@@ -205,14 +209,16 @@ export class YGOProYrp {
 
     if (this.header.isCompressed) {
       const compressedFull = compress(bodyRaw);
-      if (compressedFull.length < 13) throw new Error('Invalid LZMA output: too short.');
+      if (compressedFull.length < 13)
+        throw new Error('Invalid LZMA output: too short.');
 
       // Sync props with what the compressor produced (first 5 bytes of .lzma header)
       const props5 = compressedFull.subarray(0, 5);
       const newProps8 = new Array(8).fill(0);
       for (let i = 0; i < 5; i++) newProps8[i] = props5[i]!;
       // keep old tail if present (often unused, but harmless)
-      for (let i = 5; i < 8; i++) newProps8[i] = (this.header.props[i] ?? 0) & 0xff;
+      for (let i = 5; i < 8; i++)
+        newProps8[i] = (this.header.props[i] ?? 0) & 0xff;
       this.header.props = newProps8;
 
       // YGOPro stores raw LZMA stream WITHOUT the 13-byte header

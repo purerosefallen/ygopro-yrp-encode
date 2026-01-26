@@ -50,7 +50,9 @@ export class ByteReader {
 
   readBytes(len: number): Uint8Array {
     if (this.ptr + len > this.buf.length) {
-      throw new Error(`readBytes out of range: want=${len}, remaining=${this.remaining}`);
+      throw new Error(
+        `readBytes out of range: want=${len}, remaining=${this.remaining}`,
+      );
     }
     const out = this.buf.subarray(this.ptr, this.ptr + len);
     this.ptr += len;
