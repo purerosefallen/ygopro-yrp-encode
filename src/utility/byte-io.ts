@@ -116,6 +116,12 @@ export class ByteWriter {
     this.ptr += 4;
   }
 
+  writeUInt16(v: number): void {
+    this.ensure(2);
+    this.view.setUint16(this.ptr, v & 0xffff, true);
+    this.ptr += 2;
+  }
+
   writeUInt32(v: number): void {
     this.ensure(4);
     this.view.setUint32(this.ptr, v >>> 0, true);

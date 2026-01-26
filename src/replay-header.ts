@@ -1,4 +1,8 @@
-import { REPLAY_COMPRESSED_FLAG, REPLAY_TAG_FLAG } from './constants';
+import {
+  REPLAY_COMPRESSED_FLAG,
+  REPLAY_SINGLE_MODE,
+  REPLAY_TAG_FLAG,
+} from './constants';
 
 export class ReplayHeader {
   id = 0;
@@ -48,6 +52,10 @@ export class ReplayHeader {
 
   get isCompressed(): boolean {
     return (this.flag & REPLAY_COMPRESSED_FLAG) !== 0;
+  }
+
+  get isSingleMode(): boolean {
+    return (this.flag & REPLAY_SINGLE_MODE) !== 0;
   }
 
   /** Compose a standard 13-byte .lzma header (props[0..5) + uncompressed size (8 bytes LE)) */

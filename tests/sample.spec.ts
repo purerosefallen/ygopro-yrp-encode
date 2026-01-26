@@ -25,4 +25,15 @@ it('parses names and remakes yrp', () => {
   expect(yrp2.clientName).toBe('p2');
 
   fs.writeFileSync(outputPath2, remade2);
+
+  const cloned = new YGOProYrp(yrp);
+  expect(cloned.hostName).toBe('p1');
+  expect(cloned.clientName).toBe('p2');
+  const remade3 = cloned.toYrp();
+  expect(remade3).toEqual(remade2);
+
+  cloned.hostName = 'player1';
+  const remade4 = cloned.toYrp();
+  const yrp4 = new YGOProYrp().fromYrp(remade4);
+  expect(yrp4.hostName).toBe('player1');
 });

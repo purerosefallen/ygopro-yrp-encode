@@ -3,7 +3,7 @@
 
 import YGOProDeck from 'ygopro-deck-encode';
 
-import { REPLAY_ID_YRP2 } from './constants';
+import { DUEL_TAG_MODE, REPLAY_ID_YRP2 } from './constants';
 import { ReplayHeader } from './replay-header';
 import type { YGOProYrpLike } from './ygopro-yrp-like';
 import {
@@ -17,6 +17,7 @@ import {
 } from './replay-io';
 import { ByteReader, ByteWriter } from './utility/byte-io';
 import { concatBytes } from './utility/bytes';
+import { decodeUtf8, encodeUtf8 } from './utility/utf8';
 import { compress } from '@nanahira/lzma1';
 
 export class YGOProYrp {
@@ -95,9 +96,10 @@ export class YGOProYrp {
       this.tagClientDeck = null;
     }
 
-    if (init.responses) {
+    if (init.singleScript !== undefined) this.singleScript = init.singleScript;
+
+    if (init.responses)
       this.responses = init.responses.map((seg) => new Uint8Array(seg));
-    }
   }
 
   header: ReplayHeader | null = null;
@@ -119,6 +121,8 @@ export class YGOProYrp {
   tagHostDeck: YGOProDeck | null = null;
   tagClientDeck: YGOProDeck | null = null;
 
+  singleScript: string | null = null;
+
   responses: Uint8Array[] = [];
 
   get isTag(): boolean {
@@ -126,6 +130,9 @@ export class YGOProYrp {
   }
   get isCompressed(): boolean {
     return this.header?.isCompressed ?? false;
+  }
+  get isSingleMode(): boolean {
+    return this.header?.isSingleMode ?? false;
   }
 
   /** Parse .yrp/.yrp2 bytes */
@@ -154,15 +161,41 @@ export class YGOProYrp {
     this.drawCount = r.readInt32();
     this.opt = r.readInt32();
 
-    this.hostDeck = readDeck(r);
-    if (h.isTag) {
-      this.tagHostDeck = readDeck(r);
-      this.tagClientDeck = readDeck(r);
-    } else {
+    const isTagFromHeader = h.isTag;
+    const isTagFromOpt = (this.opt & DUEL_TAG_MODE) !== 0;
+    if (isTagFromHeader !== isTagFromOpt) {
+      throw new Error('Replay tag flag mismatch between header and params.');
+    }
+
+    if (h.isSingleMode) {
+      const slen = r.readUInt16();
+      if (slen === 0 || slen > 255)
+        throw new Error('Invalid single mode script length.');
+      const raw = r.readBytes(slen);
+      const filename = decodeUtf8(raw);
+      if (!filename.startsWith('./single/'))
+        throw new Error('Invalid single mode script path.');
+      const scriptName = filename.slice(9);
+      if (scriptName.includes('/') || scriptName.includes('\\')) {
+        throw new Error('Invalid single mode script name.');
+      }
+      this.singleScript = scriptName;
+      this.hostDeck = null;
+      this.clientDeck = null;
       this.tagHostDeck = null;
       this.tagClientDeck = null;
+    } else {
+      this.singleScript = null;
+      this.hostDeck = readDeck(r);
+      if (h.isTag) {
+        this.tagHostDeck = readDeck(r);
+        this.tagClientDeck = readDeck(r);
+      } else {
+        this.tagHostDeck = null;
+        this.tagClientDeck = null;
+      }
+      this.clientDeck = readDeck(r);
     }
-    this.clientDeck = readDeck(r);
 
     this.responses = readResponses(r);
     return this;
@@ -174,6 +207,11 @@ export class YGOProYrp {
       throw new Error(
         'Header not initialized. Call fromYrp() or set header first.',
       );
+    const isTagFromHeader = this.header.isTag;
+    const isTagFromOpt = (this.opt & DUEL_TAG_MODE) !== 0;
+    if (isTagFromHeader !== isTagFromOpt) {
+      throw new Error('Replay tag flag mismatch between header and params.');
+    }
 
     // --- build uncompressed body ---
     const w = new ByteWriter(1024);
@@ -190,12 +228,26 @@ export class YGOProYrp {
     w.writeInt32(this.drawCount);
     w.writeInt32(this.opt);
 
-    writeDeck(w, this.hostDeck);
-    if (this.header.isTag) {
-      writeDeck(w, this.tagHostDeck);
-      writeDeck(w, this.tagClientDeck);
+    if (this.header.isSingleMode) {
+      if (!this.singleScript)
+        throw new Error('singleScript is required for single mode replay.');
+      if (this.singleScript.includes('/') || this.singleScript.includes('\\')) {
+        throw new Error('Invalid single mode script name.');
+      }
+      const filename = `./single/${this.singleScript}`;
+      const raw = encodeUtf8(filename);
+      if (raw.length === 0 || raw.length > 255)
+        throw new Error('Invalid single mode script length.');
+      w.writeUInt16(raw.length);
+      w.writeBytes(raw);
+    } else {
+      writeDeck(w, this.hostDeck);
+      if (this.header.isTag) {
+        writeDeck(w, this.tagHostDeck);
+        writeDeck(w, this.tagClientDeck);
+      }
+      writeDeck(w, this.clientDeck);
     }
-    writeDeck(w, this.clientDeck);
 
     writeResponses(w, this.responses);
 

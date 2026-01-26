@@ -8,6 +8,10 @@ export function decodeUtf16leZ(bytes: Uint8Array): string {
     }
   }
 
+  if (typeof Buffer !== 'undefined') {
+    return Buffer.from(bytes.subarray(0, end)).toString('utf16le');
+  }
+
   // Prefer TextDecoder when available (most runtimes), fallback to manual.
   const TD = (globalThis as any).TextDecoder as typeof TextDecoder | undefined;
   if (TD) {
@@ -27,6 +31,10 @@ export function decodeUtf16leZ(bytes: Uint8Array): string {
 }
 
 export function encodeUtf16le(s: string): Uint8Array {
+  if (typeof Buffer !== 'undefined') {
+    return Uint8Array.from(Buffer.from(s, 'utf16le'));
+  }
+
   // Prefer TextEncoder when it can do utf-16le (rare); otherwise manual.
   // Manual: write UTF-16 code units LE (JS strings are UTF-16 code units).
   const out = new Uint8Array(s.length * 2);

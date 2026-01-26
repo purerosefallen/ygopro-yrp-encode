@@ -21,5 +21,7 @@ export interface YGOProYrpLike {
   tagHostDeck: YGOProDeck | null;
   tagClientDeck: YGOProDeck | null;
 
+  singleScript: string | null;
+
   responses: Uint8Array[];
 }
