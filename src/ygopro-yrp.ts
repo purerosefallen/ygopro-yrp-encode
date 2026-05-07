@@ -1,5 +1,5 @@
 // Platform-agnostic YGOPro .yrp/.yrp2 replay parser + writer (no Node APIs, no Buffer)
-// Compression: uses @nanahira/lzma1 (CJS+ESM). API assumed identical to lzma1: compress(Uint8Array)->Uint8Array, decompress(Uint8Array)->Uint8Array
+// Compression: uses @cjser/lzma1 for CJS+ESM compatibility with lzma1's API.
 
 import YGOProDeck from 'ygopro-deck-encode';
 
@@ -18,7 +18,7 @@ import {
 import { ByteReader, ByteWriter } from './utility/byte-io';
 import { concatBytes } from './utility/bytes';
 import { decodeUtf8, encodeUtf8 } from './utility/utf8';
-import { compress } from '@nanahira/lzma1';
+import { compress } from '@cjser/lzma1';
 
 export class YGOProYrp {
   constructor(init: Partial<YGOProYrpLike> = {}) {

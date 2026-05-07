@@ -4,7 +4,7 @@ import { REPLAY_ID_YRP2, SEED_COUNT } from './constants';
 import { ReplayHeader } from './replay-header';
 import { ByteReader, ByteWriter } from './utility/byte-io';
 import { concatBytes, u8ToI32 } from './utility/bytes';
-import { decompress } from '@nanahira/lzma1';
+import { decompress } from '@cjser/lzma1';
 
 export function readHeader(r: ByteReader): ReplayHeader {
   const h = new ReplayHeader();
