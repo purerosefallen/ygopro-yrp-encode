@@ -6,6 +6,8 @@ import { ByteReader, ByteWriter } from './utility/byte-io';
 import { concatBytes, u8ToI32 } from './utility/bytes';
 import { decompress } from '@cjser/lzma1';
 
+
+
 export function readHeader(r: ByteReader): ReplayHeader {
   const h = new ReplayHeader();
   h.id = r.readUInt32();
@@ -94,7 +96,7 @@ export function readResponses(r: ByteReader): Uint8Array[] {
     } catch {
       break;
     }
-    if (len > 64) len = 64; // mimic common yrp reader behavior
+    // if (len > 64) len = 64; // mimic common yrp reader behavior
     if (r.remaining < len) break;
     out.push(r.readBytes(len));
   }
