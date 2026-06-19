@@ -6,8 +6,6 @@ import { ByteReader, ByteWriter } from './utility/byte-io';
 import { concatBytes, u8ToI32 } from './utility/bytes';
 import { decompress } from '@cjser/lzma1';
 
-
-
 export function readHeader(r: ByteReader): ReplayHeader {
   const h = new ReplayHeader();
   h.id = r.readUInt32();
@@ -105,7 +103,8 @@ export function readResponses(r: ByteReader): Uint8Array[] {
 
 export function writeResponses(w: ByteWriter, res: Uint8Array[]): void {
   for (const seg of res) {
-    w.writeUInt8(seg.length & 0xff);
+    if (seg.length > 0xff) continue;
+    w.writeUInt8(seg.length);
     w.writeBytes(seg);
   }
 }
