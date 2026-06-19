@@ -6,6 +6,8 @@ import { ByteReader, ByteWriter } from './utility/byte-io';
 import { concatBytes, u8ToI32 } from './utility/bytes';
 import { decompress } from '@cjser/lzma1';
 
+const MAX_RESPONSE_LENGTH = 512;
+
 export function readHeader(r: ByteReader): ReplayHeader {
   const h = new ReplayHeader();
   h.id = r.readUInt32();
@@ -88,23 +90,32 @@ export function writeDeck(w: ByteWriter, d: YGOProDeck | null): void {
 export function readResponses(r: ByteReader): Uint8Array[] {
   const out: Uint8Array[] = [];
   while (r.remaining > 0) {
-    let len: number;
     try {
-      len = r.readUInt8();
+      let len = r.readUInt8();
+      if (len === 0) {
+        if (r.remaining < 2) break;
+        len = r.readUInt16();
+      }
+      if (r.remaining < len) break;
+      const response = r.readBytes(len);
+      out.push(response.subarray(0, MAX_RESPONSE_LENGTH));
     } catch {
       break;
     }
-    // if (len > 64) len = 64; // mimic common yrp reader behavior
-    if (r.remaining < len) break;
-    out.push(r.readBytes(len));
   }
   return out;
 }
 
 export function writeResponses(w: ByteWriter, res: Uint8Array[]): void {
   for (const seg of res) {
-    if (seg.length > 0xff) continue;
-    w.writeUInt8(seg.length);
-    w.writeBytes(seg);
+    if (seg.length === 0) continue;
+    const len = Math.min(seg.length, MAX_RESPONSE_LENGTH);
+    if (len <= 0xff) {
+      w.writeUInt8(len);
+    } else {
+      w.writeUInt8(0);
+      w.writeUInt16(len);
+    }
+    w.writeBytes(seg.subarray(0, len));
   }
 }
