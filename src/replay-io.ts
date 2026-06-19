@@ -96,9 +96,9 @@ export function readResponses(r: ByteReader): Uint8Array[] {
         if (r.remaining < 2) break;
         len = r.readUInt16();
       }
-      if (r.remaining < len) break;
-      const response = r.readBytes(len);
-      out.push(response.subarray(0, MAX_RESPONSE_LENGTH));
+      const responseLength = Math.min(len, MAX_RESPONSE_LENGTH);
+      if (r.remaining < responseLength) break;
+      out.push(r.readBytes(responseLength));
     } catch {
       break;
     }

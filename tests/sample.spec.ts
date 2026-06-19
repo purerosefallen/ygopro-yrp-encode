@@ -105,8 +105,8 @@ it('round-trips extended response lengths', () => {
   );
 });
 
-it('caps oversized extended responses while keeping stream alignment', () => {
-  const declaredOversizeResponse = new Uint8Array(600).fill(0xab);
+it('caps oversized extended responses while skipping only the capped length', () => {
+  const declaredOversizeResponse = new Uint8Array(512).fill(0xab);
   const trailingResponse = new Uint8Array([0xcd]);
   const yrpPrefix = createUncompressedYrp([]).toYrp();
   const malformedResponseBytes = concatBytes(
