@@ -6,7 +6,7 @@ import { ByteReader, ByteWriter } from './utility/byte-io';
 import { concatBytes, u8ToI32 } from './utility/bytes';
 import { decompress } from '@cjser/lzma1';
 
-const MAX_RESPONSE_LENGTH = 512;
+const MAX_RESPONSE_LENGTH = 256;
 
 export function readHeader(r: ByteReader): ReplayHeader {
   const h = new ReplayHeader();
