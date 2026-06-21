@@ -6,7 +6,7 @@ import { ByteReader, ByteWriter } from './utility/byte-io';
 import { concatBytes, u8ToI32 } from './utility/bytes';
 import { decompress } from '@cjser/lzma1';
 
-const MAX_RESPONSE_LENGTH = 256;
+const MAX_RESPONSE_LENGTH = 0xff;
 
 export function readHeader(r: ByteReader): ReplayHeader {
   const h = new ReplayHeader();
@@ -91,14 +91,9 @@ export function readResponses(r: ByteReader): Uint8Array[] {
   const out: Uint8Array[] = [];
   while (r.remaining > 0) {
     try {
-      let len = r.readUInt8();
-      if (len === 0) {
-        if (r.remaining < 2) break;
-        len = r.readUInt16();
-      }
-      const responseLength = Math.min(len, MAX_RESPONSE_LENGTH);
-      if (r.remaining < responseLength) break;
-      out.push(r.readBytes(responseLength));
+      const len = r.readUInt8();
+      if (len === 0 || r.remaining < len) break;
+      out.push(r.readBytes(len));
     } catch {
       break;
     }
@@ -108,14 +103,8 @@ export function readResponses(r: ByteReader): Uint8Array[] {
 
 export function writeResponses(w: ByteWriter, res: Uint8Array[]): void {
   for (const seg of res) {
-    if (seg.length === 0) continue;
-    const len = Math.min(seg.length, MAX_RESPONSE_LENGTH);
-    if (len <= 0xff) {
-      w.writeUInt8(len);
-    } else {
-      w.writeUInt8(0);
-      w.writeUInt16(len);
-    }
-    w.writeBytes(seg.subarray(0, len));
+    if (seg.length === 0 || seg.length > MAX_RESPONSE_LENGTH) continue;
+    w.writeUInt8(seg.length);
+    w.writeBytes(seg);
   }
 }

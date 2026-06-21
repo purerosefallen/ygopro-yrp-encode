@@ -66,10 +66,10 @@ it('parses names and remakes yrp', () => {
   expect(yrp4.hostName).toBe('player1');
 });
 
-it('round-trips extended response lengths', () => {
+it('round-trips only single-byte response lengths', () => {
   const maxLengthResponse = new Uint8Array(255).fill(0xaa);
-  const extendedResponse = new Uint8Array(256).fill(0xbb);
-  const maxResponse = new Uint8Array(512).fill(0xcc);
+  const tooLongResponse = new Uint8Array(256).fill(0xbb);
+  const muchTooLongResponse = new Uint8Array(512).fill(0xcc);
   const oversizeResponse = new Uint8Array(513).fill(0xdd);
   const trailingResponse = new Uint8Array([0xee, 0xff]);
   const emptyResponse = new Uint8Array(0);
@@ -77,49 +77,38 @@ it('round-trips extended response lengths', () => {
   const yrp = createUncompressedYrp([
     emptyResponse,
     maxLengthResponse,
-    extendedResponse,
-    maxResponse,
+    tooLongResponse,
+    muchTooLongResponse,
     oversizeResponse,
     trailingResponse,
   ]);
 
   const yrpBytes = yrp.toYrp();
   const roundTripped = new YGOProYrp().fromYrp(yrpBytes);
-  const expectedOversizeResponse = oversizeResponse.subarray(0, 512);
 
-  expect(roundTripped.responses).toHaveLength(5);
+  expect(roundTripped.responses).toHaveLength(2);
   expect(roundTripped.responses[0]).toEqual(maxLengthResponse);
-  expect(roundTripped.responses[1]).toEqual(extendedResponse);
-  expect(roundTripped.responses[2]).toEqual(maxResponse);
-  expect(roundTripped.responses[3]).toEqual(expectedOversizeResponse);
-  expect(roundTripped.responses[4]).toEqual(trailingResponse);
+  expect(roundTripped.responses[1]).toEqual(trailingResponse);
 
   expect(getResponseBytes(yrpBytes)).toEqual(
     concatBytes(
       responseSegment([0xff], maxLengthResponse),
-      responseSegment([0x00, 0x00, 0x01], extendedResponse),
-      responseSegment([0x00, 0x00, 0x02], maxResponse),
-      responseSegment([0x00, 0x00, 0x02], expectedOversizeResponse),
       responseSegment([0x02], trailingResponse),
     ),
   );
 });
 
-it('caps oversized extended responses while skipping only the capped length', () => {
-  const declaredOversizeResponse = new Uint8Array(512).fill(0xab);
+it('stops parsing responses at a zero length marker', () => {
+  const oldExtendedResponse = new Uint8Array(256).fill(0xab);
   const trailingResponse = new Uint8Array([0xcd]);
   const yrpPrefix = createUncompressedYrp([]).toYrp();
   const malformedResponseBytes = concatBytes(
     yrpPrefix,
-    responseSegment([0x00, 0x58, 0x02], declaredOversizeResponse),
+    responseSegment([0x00, 0x00, 0x01], oldExtendedResponse),
     responseSegment([0x01], trailingResponse),
   );
 
   const parsed = new YGOProYrp().fromYrp(malformedResponseBytes);
 
-  expect(parsed.responses).toHaveLength(2);
-  expect(parsed.responses[0]).toEqual(
-    declaredOversizeResponse.subarray(0, 512),
-  );
-  expect(parsed.responses[1]).toEqual(trailingResponse);
+  expect(parsed.responses).toHaveLength(0);
 });
