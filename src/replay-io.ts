@@ -1,9 +1,10 @@
-import YGOProDeck from 'ygopro-deck-encode';
+import type YGOProDeck from 'ygopro-deck-encode';
 
 import { REPLAY_ID_YRP2, SEED_COUNT } from './constants';
 import { ReplayHeader } from './replay-header';
 import { ByteReader, ByteWriter } from './utility/byte-io';
 import { concatBytes, u8ToI32 } from './utility/bytes';
+import { createDeck } from './utility/deck';
 import { decompress } from '@cjser/lzma1';
 
 const MAX_RESPONSE_LENGTH = 0xff;
@@ -21,10 +22,8 @@ export function readHeader(r: ByteReader): ReplayHeader {
   if (h.id === REPLAY_ID_YRP2) {
     h.seedSequence = [];
     for (let i = 0; i < SEED_COUNT; i++) h.seedSequence.push(r.readUInt32());
-    h.headerVersion = r.readUInt32();
-    h.value1 = r.readUInt32();
-    h.value2 = r.readUInt32();
-    h.value3 = r.readUInt32();
+    h.headerVersion = r.readUInt8();
+    h.value = new Uint8Array(r.readBytes(15));
   }
   return h;
 }
@@ -43,10 +42,8 @@ export function writeHeader(w: ByteWriter, h: ReplayHeader): void {
 
   if (h.id === REPLAY_ID_YRP2) {
     for (let i = 0; i < SEED_COUNT; i++) w.writeUInt32(h.seedSequence[i] ?? 0);
-    w.writeUInt32(h.headerVersion);
-    w.writeUInt32(h.value1);
-    w.writeUInt32(h.value2);
-    w.writeUInt32(h.value3);
+    w.writeUInt8(h.headerVersion);
+    for (let i = 0; i < 15; i++) w.writeUInt8(h.value[i] ?? 0);
   }
 }
 
@@ -66,7 +63,7 @@ function readDeckPack(r: ByteReader): number[] {
 }
 
 export function readDeck(r: ByteReader): YGOProDeck {
-  const deck = new YGOProDeck();
+  const deck = createDeck();
   deck.main = readDeckPack(r);
   deck.extra = readDeckPack(r);
   return deck;

@@ -50,6 +50,32 @@ const header = new ReplayHeader();
 header.id = REPLAY_ID_YRP1;
 ```
 
+For YRP2, `headerVersion` occupies one byte and `value` is a zero-initialized
+`Uint8Array(15)` containing reserved bytes. All 15 bytes are preserved on read,
+deep copy, and write, including nonzero bytes. Writing always emits 15 reserved
+bytes, zero-padding shorter arrays and truncating longer ones. The YRP2 header
+remains 80 bytes, with the version at offset 64 and the reserved bytes at 65–79.
+
+The deprecated `value1`, `value2`, and `value3` getters/setters remain available.
+They expose little-endian unsigned 32-bit values at offsets 3, 7, and 11 within
+`value`, respectively. New code should use `value` directly and preserve bytes
+whose meaning it does not know. For example, the equivalent of
+`header.value1 = 0x12345678` is:
+
+```ts
+new DataView(
+  header.value.buffer,
+  header.value.byteOffset,
+  header.value.byteLength,
+).setUint32(3, 0x12345678, true);
+```
+
+The deep-copy constructor also accepts legacy header objects without `value`:
+it migrates the upper three bytes of the old 32-bit `headerVersion` followed by
+`value1`, `value2`, and `value3` into the reserved array. If `value` is present,
+it takes precedence over the deprecated fields. When parsing old files, the
+version is now the low byte; the other three bytes are preserved in `value`.
+
 ### Constants
 
 ```ts

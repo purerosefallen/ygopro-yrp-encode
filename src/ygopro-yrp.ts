@@ -1,7 +1,7 @@
 // Platform-agnostic YGOPro .yrp/.yrp2 replay parser + writer (no Node APIs, no Buffer)
 // Compression: uses @cjser/lzma1 for CJS+ESM compatibility with lzma1's API.
 
-import YGOProDeck from 'ygopro-deck-encode';
+import type YGOProDeck from 'ygopro-deck-encode';
 
 import { DUEL_TAG_MODE, REPLAY_ID_YRP2 } from './constants';
 import { ReplayHeader } from './replay-header';
@@ -17,6 +17,7 @@ import {
 } from './replay-io';
 import { ByteReader, ByteWriter } from './utility/byte-io';
 import { concatBytes } from './utility/bytes';
+import { createDeck } from './utility/deck';
 import { decodeUtf8, encodeUtf8 } from './utility/utf8';
 import { compress } from '@cjser/lzma1';
 
@@ -32,10 +33,18 @@ export class YGOProYrp {
       h.hash = init.header.hash ?? 0;
       h.props = [...(init.header.props ?? [])];
       h.seedSequence = [...(init.header.seedSequence ?? [])];
-      h.headerVersion = init.header.headerVersion ?? 0;
-      h.value1 = init.header.value1 ?? 0;
-      h.value2 = init.header.value2 ?? 0;
-      h.value3 = init.header.value3 ?? 0;
+      const headerVersion = init.header.headerVersion ?? 0;
+      h.headerVersion = headerVersion & 0xff;
+      if (init.header.value) {
+        h.value.set(init.header.value.subarray(0, 15));
+      } else {
+        // Migrate headers created with the old four-u32 extension layout.
+        for (let i = 0; i < 3; i++)
+          h.value[i] = (headerVersion >>> ((i + 1) * 8)) & 0xff;
+        h.value1 = init.header.value1 ?? 0;
+        h.value2 = init.header.value2 ?? 0;
+        h.value3 = init.header.value3 ?? 0;
+      }
       this.header = h;
     } else if (init.header === null) {
       this.header = null;
@@ -49,7 +58,7 @@ export class YGOProYrp {
     if (init.opt !== undefined) this.opt = init.opt;
 
     if (init.hostDeck) {
-      this.hostDeck = new YGOProDeck({
+      this.hostDeck = createDeck({
         main: [...(init.hostDeck.main ?? [])],
         extra: [...(init.hostDeck.extra ?? [])],
         side: [...(init.hostDeck.side ?? [])],
@@ -60,7 +69,7 @@ export class YGOProYrp {
     }
 
     if (init.clientDeck) {
-      this.clientDeck = new YGOProDeck({
+      this.clientDeck = createDeck({
         main: [...(init.clientDeck.main ?? [])],
         extra: [...(init.clientDeck.extra ?? [])],
         side: [...(init.clientDeck.side ?? [])],
@@ -75,7 +84,7 @@ export class YGOProYrp {
       this.tagClientName = init.tagClientName;
 
     if (init.tagHostDeck) {
-      this.tagHostDeck = new YGOProDeck({
+      this.tagHostDeck = createDeck({
         main: [...(init.tagHostDeck.main ?? [])],
         extra: [...(init.tagHostDeck.extra ?? [])],
         side: [...(init.tagHostDeck.side ?? [])],
@@ -86,7 +95,7 @@ export class YGOProYrp {
     }
 
     if (init.tagClientDeck) {
-      this.tagClientDeck = new YGOProDeck({
+      this.tagClientDeck = createDeck({
         main: [...(init.tagClientDeck.main ?? [])],
         extra: [...(init.tagClientDeck.extra ?? [])],
         side: [...(init.tagClientDeck.side ?? [])],

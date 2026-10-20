@@ -20,10 +20,61 @@ export class ReplayHeader {
 
   // yrp2 extra
   seedSequence: number[] = [];
+  /** One byte in the YRP2 header. */
   headerVersion = 0;
-  value1 = 0;
-  value2 = 0;
-  value3 = 0;
+  /** 15 reserved bytes, preserved when reading, copying, and writing. */
+  value: Uint8Array = new Uint8Array(15);
+
+  /** @deprecated Use value instead; this maps to value[3..7). */
+  get value1(): number {
+    return this.readValue(3);
+  }
+
+  /** @deprecated Use value instead; this maps to value[3..7). */
+  set value1(v: number) {
+    this.writeValue(3, v);
+  }
+
+  /** @deprecated Use value instead; this maps to value[7..11). */
+  get value2(): number {
+    return this.readValue(7);
+  }
+
+  /** @deprecated Use value instead; this maps to value[7..11). */
+  set value2(v: number) {
+    this.writeValue(7, v);
+  }
+
+  /** @deprecated Use value instead; this maps to value[11..15). */
+  get value3(): number {
+    return this.readValue(11);
+  }
+
+  /** @deprecated Use value instead; this maps to value[11..15). */
+  set value3(v: number) {
+    this.writeValue(11, v);
+  }
+
+  private readValue(offset: number): number {
+    return (
+      ((this.value[offset] ?? 0) |
+        ((this.value[offset + 1] ?? 0) << 8) |
+        ((this.value[offset + 2] ?? 0) << 16) |
+        ((this.value[offset + 3] ?? 0) << 24)) >>>
+      0
+    );
+  }
+
+  private writeValue(offset: number, v: number): void {
+    if (this.value.length !== 15) {
+      const value = new Uint8Array(15);
+      value.set(this.value.subarray(0, 15));
+      this.value = value;
+    }
+    for (let i = 0; i < 4; i++) {
+      this.value[offset + i] = (v >>> (i * 8)) & 0xff;
+    }
+  }
 
   get dataSize(): number {
     return (

@@ -11,3 +11,4 @@ Dockerfile
 /tests
 /dist/tests
 /build.js
+/*.yrp
