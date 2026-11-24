@@ -56,13 +56,18 @@ it.each(['cjs', 'esm'])(
     const replay = new api.YGOProYrp().fromYrp(fs.readFileSync(process.argv[2]));
     assert.equal(replay.hostName, 'p1');
     assert(replay.hostDeck.main.length > 0);
+    assert.equal(replay.header.shuffleVersion, api.ShuffleVersion.NotAvailable);
+    replay.header.shuffleVersion = api.ShuffleVersion.MTRandomWithSalt;
     replay.header.value.set(Array.from({ length: 15 }, (_, i) => i + 1));
     const copy = new api.YGOProYrp(replay);
     assert.deepEqual(copy.hostDeck, replay.hostDeck);
     assert.notEqual(copy.hostDeck.main, replay.hostDeck.main);
     for (const compressed of [false, true]) {
       copy.header.flag = compressed ? api.REPLAY_COMPRESSED_FLAG : 0;
-      const parsed = new api.YGOProYrp().fromYrp(copy.toYrp());
+      const written = copy.toYrp();
+      assert.equal(written[31], 3);
+      const parsed = new api.YGOProYrp().fromYrp(written);
+      assert.equal(parsed.header.shuffleVersion, api.ShuffleVersion.MTRandomWithSalt);
       assert.deepEqual(parsed, copy);
     }
   `;

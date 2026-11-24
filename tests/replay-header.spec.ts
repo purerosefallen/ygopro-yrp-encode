@@ -11,6 +11,7 @@ import {
   REPLAY_SINGLE_MODE,
   REPLAY_TAG_FLAG,
   ReplayHeader,
+  ShuffleVersion,
   YGOProYrp,
 } from '../index';
 import { readHeader, writeHeader } from '../src/replay-io';
@@ -49,6 +50,57 @@ function legacyHeaderBytes(
 function patternedValue(): Uint8Array {
   return Uint8Array.from({ length: 15 }, (_, i) => 0x81 + i * 7);
 }
+
+describe('initial shuffle version', () => {
+  it.each([
+    [ShuffleVersion.NotAvailable, 0],
+    [ShuffleVersion.None, 1],
+    [ShuffleVersion.MTRandom, 2],
+    [ShuffleVersion.MTRandomWithSalt, 3],
+    [ShuffleVersion.Other, 4],
+  ] as const)('stores enum value %i as byte %i', (version, byte) => {
+    const header = new ReplayHeader();
+    header.id = REPLAY_ID_YRP2;
+    header.props = [0x5d, 0, 0, 1, 0, 0xaa, 0xbb, 0xcc];
+    const expected = serializeHeader(header);
+    expected[31] = byte;
+
+    expect(version).toBe(byte);
+    header.shuffleVersion = version;
+    expect(header.props[7]).toBe(byte);
+    expect(serializeHeader(header)).toEqual(expected);
+    expect(readHeader(new ByteReader(expected)).shuffleVersion).toBe(version);
+  });
+
+  it('reads a fresh or short props array as NotAvailable', () => {
+    const header = new ReplayHeader();
+    expect(header.shuffleVersion).toBe(ShuffleVersion.NotAvailable);
+    header.props = [0x5d, 0, 0, 1, 0];
+    expect(header.shuffleVersion).toBe(ShuffleVersion.NotAvailable);
+    expect(serializeHeader(header)[31]).toBe(0);
+
+    header.shuffleVersion = ShuffleVersion.None;
+    expect(header.props[7]).toBe(1);
+    expect(serializeHeader(header)[31]).toBe(1);
+    header.props[7] = 2;
+    expect(header.shuffleVersion).toBe(ShuffleVersion.MTRandom);
+  });
+
+  it('preserves an unrecognized byte through copying and recompression', () => {
+    const bytes = fs.readFileSync(path.join(__dirname, 'ygopro-yrp-test.yrp'));
+    bytes[31] = 0xff;
+    const replay = new YGOProYrp().fromYrp(bytes);
+    expect(replay.isCompressed).toBe(true);
+    expect(replay.header!.shuffleVersion).toBe(0xff);
+
+    const copy = new YGOProYrp(replay);
+    expect(copy.header!.shuffleVersion).toBe(0xff);
+    replay.header!.shuffleVersion = ShuffleVersion.None;
+    const written = copy.toYrp();
+    expect(written[31]).toBe(0xff);
+    expect(new YGOProYrp().fromYrp(written)).toEqual(copy);
+  });
+});
 
 describe('YRP2 header layout compatibility', () => {
   it('defaults to the existing version and independent zeroed reserved bytes', () => {
@@ -254,6 +306,7 @@ describe('replay body compatibility', () => {
   it('preserves the sample replay header and complete parsed replay', () => {
     const input = fs.readFileSync(path.join(__dirname, 'ygopro-yrp-test.yrp'));
     const replay = new YGOProYrp().fromYrp(input);
+    expect(replay.header!.shuffleVersion).toBe(ShuffleVersion.NotAvailable);
     expect(serializeHeader(replay.header!)).toEqual(
       new Uint8Array(input.subarray(0, 80)),
     );
@@ -262,18 +315,21 @@ describe('replay body compatibility', () => {
   });
 
   it.each([
-    ['regular', 0, 0],
-    ['tag', REPLAY_TAG_FLAG, DUEL_TAG_MODE],
-    ['single', REPLAY_SINGLE_MODE, 0],
+    ['regular', 0, 0, ShuffleVersion.MTRandomWithSalt],
+    ['tag', REPLAY_TAG_FLAG, DUEL_TAG_MODE, ShuffleVersion.Other],
+    ['single', REPLAY_SINGLE_MODE, 0, ShuffleVersion.None],
   ] as const)(
-    'preserves %s body semantics with arbitrary reserved bytes',
-    (_, flag, opt) => {
+    'preserves %s body semantics, shuffle version, and reserved bytes',
+    (_, flag, opt, shuffleVersion) => {
       for (const id of [REPLAY_ID_YRP1, REPLAY_ID_YRP2]) {
         for (const compressed of [false, true]) {
           const header = new ReplayHeader();
           header.id = id;
           header.headerVersion = 1;
           header.flag = flag | (compressed ? REPLAY_COMPRESSED_FLAG : 0);
+          header.props[5] = 0xaa;
+          header.props[6] = 0xbb;
+          header.shuffleVersion = shuffleVersion;
           header.seedSequence = [1, 2, 3, 4, 5, 6, 7, 8];
           header.value = patternedValue();
           const replay = new YGOProYrp({
@@ -297,6 +353,9 @@ describe('replay body compatibility', () => {
             ],
           });
           const bytes = replay.toYrp();
+          expect(bytes.slice(29, 32)).toEqual(
+            Uint8Array.of(0xaa, 0xbb, shuffleVersion),
+          );
           const headerSize = id === REPLAY_ID_YRP2 ? 80 : 32;
           if (id === REPLAY_ID_YRP2) {
             expect(bytes.slice(64, 80)).toEqual(
@@ -309,6 +368,7 @@ describe('replay body compatibility', () => {
             );
           }
           const parsed = new YGOProYrp().fromYrp(bytes);
+          expect(parsed.header!.shuffleVersion).toBe(shuffleVersion);
           expect(parsed.hostName).toBe('P1');
           expect(parsed.clientName).toBe('P2');
           expect(parsed.responses).toEqual(replay.responses);

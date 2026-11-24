@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-import { YGOProYrp } from '../index';
+import { ShuffleVersion, YGOProYrp } from '../index';
 import { writeHeader } from '../src/replay-io';
 import { ByteWriter } from '../src/utility/byte-io';
 
@@ -29,6 +29,7 @@ describe('real replay fixtures', () => {
     expect(writer.toUint8Array()).toEqual(
       new Uint8Array(input.subarray(0, 80)),
     );
+    expect(replay.header!.shuffleVersion).toBe(ShuffleVersion.NotAvailable);
     expect(replay.header!.headerVersion).toBe(input[64]);
     expect(replay.header!.value).toEqual(
       new Uint8Array(input.subarray(65, 80)),

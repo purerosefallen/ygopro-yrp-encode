@@ -50,6 +50,11 @@ const header = new ReplayHeader();
 header.id = REPLAY_ID_YRP1;
 ```
 
+`shuffleVersion` reads and writes `props[7]` in both YRP1 and YRP2. The exported
+`ShuffleVersion` enum defines `NotAvailable` (0), `None` (1), `MTRandom` (2),
+`MTRandomWithSalt` (3), and `Other` (4). Older replays with a zero byte read as
+`NotAvailable`. Unrecognized byte values are preserved when writing a replay.
+
 For YRP2, `headerVersion` occupies one byte and `value` is a zero-initialized
 `Uint8Array(15)` containing reserved bytes. All 15 bytes are preserved on read,
 deep copy, and write, including nonzero bytes. Writing always emits 15 reserved

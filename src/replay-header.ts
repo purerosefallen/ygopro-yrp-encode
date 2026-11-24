@@ -2,6 +2,7 @@ import {
   REPLAY_COMPRESSED_FLAG,
   REPLAY_SINGLE_MODE,
   REPLAY_TAG_FLAG,
+  ShuffleVersion,
 } from './constants';
 
 export class ReplayHeader {
@@ -15,8 +16,17 @@ export class ReplayHeader {
 
   hash = 0;
 
-  /** 8 bytes stored in file; only first 5 are LZMA properties */
+  /** Eight bytes on disk. The first five are LZMA properties, and byte 7 stores the shuffle version. */
   props: number[] = new Array(8).fill(0);
+
+  /** Initial deck shuffle version. Unrecognized byte values are preserved. */
+  get shuffleVersion(): ShuffleVersion {
+    return (this.props[7] ?? ShuffleVersion.NotAvailable) as ShuffleVersion;
+  }
+
+  set shuffleVersion(version: ShuffleVersion) {
+    this.props[7] = version;
+  }
 
   // yrp2 extra
   seedSequence: number[] = [];

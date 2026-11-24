@@ -277,7 +277,7 @@ export class YGOProYrp {
       const props5 = compressedFull.subarray(0, 5);
       const newProps8 = new Array(8).fill(0);
       for (let i = 0; i < 5; i++) newProps8[i] = props5[i]!;
-      // keep old tail if present (often unused, but harmless)
+      // Preserve the reserved bytes and shuffle version after the LZMA properties.
       for (let i = 5; i < 8; i++)
         newProps8[i] = (this.header.props[i] ?? 0) & 0xff;
       this.header.props = newProps8;
